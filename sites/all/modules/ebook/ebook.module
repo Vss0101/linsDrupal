@@ -1,0 +1,94 @@
+<?php
+
+/**
+ * Implementation of hook_node_info
+ *
+ * @return unknown
+ */
+function ebook_node_info() {
+	$info = array();
+	$info['ebook'] = array(
+		'name' => t('EBook'),
+		'base' => 'node_content',
+	);
+	return $info;
+}
+
+function ebook_menu() {
+  $items['loginbooks'] = array(
+    'title' => t('My Books'),
+    'page callback' => 'login_ebook_callback',
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'main-menu',
+    'weight' => 5,
+  );
+
+  $items['allbooks'] = array(
+    'title' => t('All Books'),
+    'page callback' => 'all_ebook_callback',
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'main-menu',
+    'weight' => 5,
+  );
+
+
+
+  return $items;
+}
+
+function all_ebook_callback(){
+  global $user;
+      if (user_access('access content')) {
+        // Perform database queries to gather users who are not friends of the current user.
+      $uid = $user->uid;
+
+      $query = db_select('node', 'n');
+    $items = $query->fields('n', array('nid', 'title'))
+    ->condition('n.type', 'ebook')
+    ->condition('n.status', 1)
+    ->execute()
+    ->fetchAll();
+
+    if (count($items)!==0) {
+        $html = '<ul>';
+        foreach($items as $item) {
+          $html .= '<li>
+              <a href="' . url("node/{$item->nid}")  . '">' . $item->title . '</a>
+            </li>';
+        }
+        $html .= '</ul>';
+         return $html;
+      }
+    return t("please login");
+  }
+}
+
+
+function login_ebook_callback(){
+  global $user;
+      if (user_access('access content')) {
+        // Perform database queries to gather users who are not friends of the current user.
+      $uid = $user->uid;
+
+      $query = db_select('node', 'n');
+    $items = $query->fields('n', array('nid', 'title'))
+    ->condition('n.type', 'ebook')
+    ->condition('n.uid',$uid)
+    ->execute()
+    ->fetchAll();
+
+    if (count($items)!==0) {
+        $html = '<ul>';
+        foreach($items as $item) {
+          $html .= '<li>
+              <a href="' . url("node/{$item->nid}")  . '">' . $item->title . '</a>
+            </li>';
+        }
+        $html .= '</ul>';
+         return $html;
+      }
+    return t("please login");
+  }
+}
