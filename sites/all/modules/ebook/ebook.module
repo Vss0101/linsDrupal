@@ -10,85 +10,54 @@ function ebook_node_info() {
 	$info['ebook'] = array(
 		'name' => t('EBook'),
 		'base' => 'node_content',
+		'description' => t('Use for ebook. Every user can upload and view a book.'),
 	);
 	return $info;
 }
 
+/**
+ * Implementation of hook_menu()
+ */
 function ebook_menu() {
-  $items['loginbooks'] = array(
-    'title' => t('My Books'),
-    'page callback' => 'login_ebook_callback',
-    'access callback' => TRUE,
+  $items['mylibrary'] = array(
+    'title' => t('My Library'),
+    'page callback' => 'mylibrary_page_callback',
+    'access arguments' => array('access content'),
     'type' => MENU_NORMAL_ITEM,
-    'menu_name' => 'main-menu',
-    'weight' => 5,
+    'menu_name' => 'user-menu',
+    'weight' => -5,
   );
-
-  $items['allbooks'] = array(
-    'title' => t('All Books'),
-    'page callback' => 'all_ebook_callback',
-    'access callback' => TRUE,
-    'type' => MENU_NORMAL_ITEM,
-    'menu_name' => 'main-menu',
-    'weight' => 5,
-  );
-
-
 
   return $items;
 }
 
-function all_ebook_callback(){
+function mylibrary_page_callback(){
   global $user;
-      if (user_access('access content')) {
-        // Perform database queries to gather users who are not friends of the current user.
-      $uid = $user->uid;
+  $build = array();
 
-      $query = db_select('node', 'n');
-    $items = $query->fields('n', array('nid', 'title'))
-    ->condition('n.type', 'ebook')
-    ->condition('n.status', 1)
+  $query = db_select('node', 'n')->extend('PagerDefault');
+  $nids = $query
+    ->fields('n', array('nid', 'created'))
+    ->condition('type', 'ebook')
+    ->condition('uid', $user->uid)  //books uploaded by the current user
+    ->condition('status', 1)
+    ->orderBy('created', 'DESC')
+    ->limit(variable_get('default_nodes_main', 10))
+    ->addTag('node_access')
     ->execute()
-    ->fetchAll();
+    ->fetchCol();
 
-    if (count($items)!==0) {
-        $html = '<ul>';
-        foreach($items as $item) {
-          $html .= '<li>
-              <a href="' . url("node/{$item->nid}")  . '">' . $item->title . '</a>
-            </li>';
-        }
-        $html .= '</ul>';
-         return $html;
-      }
-    return t("please login");
+  if (!empty($nids)) {
+    $nodes = node_load_multiple($nids);
+    $build += node_view_multiple($nodes);
+    $build['pager'] = array(
+      '#theme' => 'pager',
+      '#weight' => 5,
+    );
   }
-}
-
-
-function login_ebook_callback(){
-  global $user;
-      if (user_access('access content')) {
-        // Perform database queries to gather users who are not friends of the current user.
-      $uid = $user->uid;
-
-      $query = db_select('node', 'n');
-    $items = $query->fields('n', array('nid', 'title'))
-    ->condition('n.type', 'ebook')
-    ->condition('n.uid',$uid)
-    ->execute()
-    ->fetchAll();
-
-    if (count($items)!==0) {
-        $html = '<ul>';
-        foreach($items as $item) {
-          $html .= '<li>
-              <a href="' . url("node/{$item->nid}")  . '">' . $item->title . '</a>
-            </li>';
-        }
-        $html .= '</ul>';
-         return $html;
-      }
-    return t("please login");
+  else {
+    drupal_set_message(t('No book entries have been created.'));
   }
+
+  return $build;
 }
