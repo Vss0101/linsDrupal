@@ -112,21 +112,8 @@ function attach_highlight_position(page_id, start_index, end_index, start_offset
 
 		                    var highlightdiv = addHighlight(json.node.page_id,json.node.highlight_start, json.node.highlight_end, 0, 0);
 		                    // console.log(highlightdiv instanceof jQuery)
-		                    const line = drawLine(highlightdiv.get(0), current.get(0));
-		                    current.after(line);
-		                    // $('body').append(line);
-		                    // current.append(line)
-		                    // console.log(typeof(highlightdiv))
-		                    // console.log(typeof(current))
-		                    // drawLine(highlightdiv,current);
-		            //         jsPlumb.ready(function () {
-										    //   jsPlumb.connect({
-										    //     source: current.get(0),
-										    //     target: highlightdiv.get(0),
-										    //     endpoint: 'Dot',
-										    //     connector:['Straight']
-										    //   })
-										    // })
+		                    drawLine(highlightdiv.get(0), current.get(0));
+
 		                }
 					}
 
@@ -175,7 +162,7 @@ function attach_highlight_position(page_id, start_index, end_index, start_offset
         // var y_end =  Number(endObj.css("top").replace("px","")) + endObj.height()/2;
         // var x_end =  Number(endObj.css("left").replace("px",""));
 
-        console.log(y_start,x_start,y_end,x_end);
+        // console.log(y_start,x_start,y_end,x_end);
 
         var deg = 0;
         if (y_start == y_end)
@@ -232,7 +219,7 @@ function attach_highlight_position(page_id, start_index, end_index, start_offset
 				}
 				//document.body.appendChild(div2);
 
-        console.log(html);
+        // console.log(html);
         return html;
     }
 
@@ -265,7 +252,8 @@ function attach_highlight_position(page_id, start_index, end_index, start_offset
 	function openDialog(){
 		if( !dialog ){
 			// init the dialog
-			dialog = $('<div id="postbox-dialog"></div>').hide().appendTo($('body')).css({"background-color":"yellow","font-size":"200%"});
+			dialog = $('<div id="postbox-dialog"></div>').hide().appendTo($('body')).
+											css({"background-color":"yellow","font-size":"200%"});
 
 			// Define the close button for the dialog
 			// Define the click event for the close button
