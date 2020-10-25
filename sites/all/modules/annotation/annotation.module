@@ -1,5 +1,5 @@
 <?php
-
+  // jsplumb_add_library();
 /**
  * Implementation of hook_node_info
  *
@@ -13,6 +13,22 @@ function annotation_node_info() {
 		'description' => t('Use for ebook. Every user can make annotations for ebook.'),
 	);
 	return $info;
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function annotation_node_delete($node) {
+  if ($node->type == "annotation") {
+    db_delete('ebook_annotations')
+    ->condition('annotation_nid', $node->nid)
+    ->execute();
+  }
+  else if($node->type == "ebook") {
+    db_delete('ebook_annotations')
+    ->condition('book_nid', $node->nid)
+    ->execute();
+  }
 }
 
 /**
@@ -55,20 +71,17 @@ function annotation_block_info() {
  */
 function annotation_block_view($delta = '') {
   global $user;
-  $block = array();
-  $id = arg(1);
 
+  $block = array();
 
   if ($delta == 'annotation_block') {
       if (user_access('access content')) {
         // Perform database queries to get annotations.
         $query = db_select('node', 'n')->extend('PagerDefault');
-        $query -> join('ebook_annotations','e','e.annotation_nid=n.nid');
         $nids = $query
           ->fields('n', array('nid', 'created'))
           ->condition('type', 'annotation')
           ->condition('status', 1)
-          ->condition('e.book_nid',$id)
           ->orderBy('created', 'DESC')
           ->limit(variable_get('default_nodes_main', 10))
           ->addTag('node_access')
@@ -200,7 +213,6 @@ function theme_annotation_image_uploader_preview($variables) {
 function annotation_ajax_callback(){
   $act = isset($_REQUEST['act']) ? $_REQUEST['act'] : '';
   $ret = array('error' => 'The request had bad syntax or was inherently impossible to be satisfied.');
-
   switch( $act ){
     case 'publish':
       if (isset($_REQUEST['msg']) && !empty($_REQUEST['msg'])) {
@@ -213,6 +225,21 @@ function annotation_ajax_callback(){
         $new_object = node_view($new_node);
         $ret = array('success' => t('Annotation post sucesssfully!'), 'annotation'=>$new_object);
       }
+      break;
+    case 'getHightlight':
+      $annotationId = $_REQUEST['annotation_id'];
+      $query = db_select('ebook_annotations','e')->extend('PagerDefault');
+      $nids = $query
+        ->fields('e',array('page_id','highlight_start','highlight_end'))
+        ->condition('annotation_nid',$annotationId)
+        ->execute()
+        ->fetchAll();
+      //var_dump($nids[0]['page_id']);
+      $ret = array('success' => t('success!'),
+                   'node' => $nids[0]);
+      //var_dump($start);
+      // Add codes here to get the correct highligthing information for a selected annotation
+      //
       break;
     default:
       break;
@@ -247,11 +274,12 @@ function _annotation_save_annotation($body='') {
   $attach = (isset($_REQUEST['attach']) && !empty($_REQUEST['attach']))?$_REQUEST['attach']:NULL;
   if ($attach) {
     if (isset($attach['type']) && $attach['type'] == 'file' ) {
-      $attach_file = annotation_save_attachment_file($attach['id']);
-      if (isset($attach_file))
-        $node->annotation_image[$node->language][0] = array(
-          'fid' => $attach_file->fid,
-        );
+      if (isset($attach['id']) && is_numeric($attach['id'])) {
+        $attach_file = annotation_save_attachment_file($attach['id']);
+        if ($attach_file) {
+          $node->annotation_image[$node->language][0]['fid'] = $attach_file->fid;
+        }
+      }
     }
   }
 
@@ -262,16 +290,27 @@ function _annotation_save_annotation($body='') {
     if (isset($attach_file))
       file_usage_add($attach_file, 'file', 'node', $node->nid);
 
-    $bid = $_REQUEST['book_id'];
-    $start = (isset($_REQUEST['start'])&&is_numeric($_REQUEST['start'])) ? $_REQUEST['start'] : NULL;
-    $end = (isset($_REQUEST['end'])&&is_numeric($_REQUEST['end'])) ? $_REQUEST['end'] : NULL;
-    db_merge('ebook_annotations')
-    ->key(array('book_nid' => $bid,'annotation_nid'=>$node->nid))
-    ->fields(array(
-      'highlight_start' => $start,
-      'highlight_end' => $end,
-    ))
-    ->execute();
+    $bid = (isset($_REQUEST['book_id'])&&is_numeric($_REQUEST['book_id'])) ? $_REQUEST['book_id'] : NULL;
+    if ($bid) {
+      $page_id = NULL;
+      $start = NULL;
+      $end = NULL;
+      $highlight = (isset($_REQUEST['highlight']) && !empty($_REQUEST['highlight']))?$_REQUEST['highlight']:NULL;
+      if ($highlight) {
+        $page_id = (isset($highlight['page_id'])&&is_numeric($highlight['page_id'])) ? $highlight['page_id'] : NULL;
+        $start = (isset($highlight['start'])&&is_numeric($highlight['start'])) ? $highlight['start'] : NULL;
+        $end = (isset($highlight['end'])&&is_numeric($highlight['end'])) ? $highlight['end'] : NULL;
+      }
+      db_merge('ebook_annotations')
+      ->key(array('annotation_nid'=>$node->nid))
+      ->fields(array(
+        'book_nid' => $bid,
+        'page_id' => $page_id,
+        'highlight_start' => $start,
+        'highlight_end' => $end,
+      ))
+      ->execute();
+    }
   }
 
   return $node;
@@ -292,4 +331,3 @@ function annotation_save_attachment_file($id) {
 
   return FALSE;
 }
-
